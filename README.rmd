@@ -19,8 +19,8 @@ list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.
 
 
 ```{r}
- #Texevier::create_template(directory = "/Users/17640296_FinMetrics",
-                          # template_name = "Question_1",
-                           #build_project = T, open_project = T)
+ Texevier::create_template(directory = "/Users/17640296_FinMetrics",
+                           template_name = "Question_1",
+                           build_project = T, open_project = T)
 ```
 
