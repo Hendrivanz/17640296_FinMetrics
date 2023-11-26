@@ -6,7 +6,6 @@ output:
 
 # Financial Metrics 871 Practical Exam
 
-some stuff here
 
 
 ```{r housekeeping, include=FALSE}
@@ -14,13 +13,287 @@ some stuff here
 rm(list = ls()) # Clean your environment:
 gc() # garbage collection - It can be useful to call gc after a large object has been removed, as this may prompt R to return memory to the operating system.
 library(tidyverse)
+library(PerformanceAnalytics)
+library(tbl2xts)
+library(fmxdat)
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
+
+# working directory
+path = getwd()
 ```
 
 
 ```{r}
- Texevier::create_template(directory = "/Users/17640296_FinMetrics",
-                           template_name = "Question_1",
-                           build_project = T, open_project = T)
+# PDF Texevier:
+Texevier::create_template(directory = "Questions",
+                          template_name = "Question1"
+)
+
+# HTML Texevier:
+Texevier::create_template_html(directory = "Questions",
+                          template_name = "Question2"
+)
 ```
+
+# Question 1: Systematic AI Fund
+
+Goal is to showcase the performance of my AI_Implementer fund by comparing it to a benchmark (Capped SWIX) and industry peers (ASISA). I will use four objects to demonstrate performance. First, just a simple cumulative return graph. Secondly, 3 year annualized rolling return graph. Third, a table of statistics and fourth some distributional results. 
+
+```{r setup, echo=FALSE}
+
+#load data
+ASISA <- read_rds("data/ASISA_Rets.rds")
+BM <- read_rds("data/Capped_SWIX.rds")
+AI_Fund <- read_rds("data/AI_Max_Fund.rds")
+```
+
+## Step 1: Data preprocessing
+
+First, let's check if there are NAs in any of the returns data.
+
+```{r}
+sum(is.na(AI_Fund$AI_Fund))
+sum(is.na(ASISA_df$Returns))
+sum(is.na(BM$Returns))
+```
+
+No NAs. We can proceed. 
+
+Returns recorded monthly for all data sets. This eases preprocessing.
+We want to compare our fund to actively managed funds, therefore I exclude indexes and FoF (Fund of Funds) contained in the `ASISA` df. I also rename returns columns so they are distinct for easy identification after joining the data frames. 
+
+```{r}
+ASISA_active <- ASISA %>% filter(Index == 'No', FoF == "No")  %>%  select(.,-Index, -FoF) %>% arrange(date)
+
+bm <- BM %>% select(-Tickers) %>% rename(bm_returns = Returns) %>% arrange(date)
+
+ai_fund <- AI_Fund %>% rename(ai_returns = AI_Fund) %>% arrange(date)
+
+
+```
+
+```{r}
+library(lubridate)
+asisa_cum_ret <- ASISA_active %>% group_by(Fund) %>% 
+mutate(Cum_Ret = cumprod(1 + Returns)) %>% ungroup()
+
+fund_with_median_return <- asisa_cum_ret %>%
+  filter(date == max(date)) %>%
+  arrange(desc(Cum_Ret)) %>%
+  slice((n() + 1) / 2) %>%
+  pull(Fund)
+
+asisa_med <- asisa_cum_ret %>% filter(Fund == fund_with_median_return) %>% select(date, Cum_Ret)
+```
+
+## Step 2: Cumulative Return graph
+
+In this graph I compare the performance of the AI fund against the benchmark and the mean active managers funds. 
+
+```{r}
+
+# Compute mean returns for the active funds at each date
+asisa_meds <- ASISA_active %>% 
+    group_by(date) %>% 
+    summarize(med_asisa_ret = median(Returns))
+
+ASISA_means <- ASISA_active %>%
+  group_by(date) %>%
+  summarize(mean_asisa_ret = mean(Returns))
+
+# Merge the mean returns with AI fund and benchmark data
+comparison_data_combine <- ASISA_means %>%
+  left_join(ai_fund, by = "date") %>%
+  left_join(bm, by = "date") %>% 
+    left_join(asisa_meds, by = "date")
+
+# Calculate cumulative returns
+comparison_data <- comparison_data_combine %>%
+  mutate(cumulative_return_asisa = cumprod(1 + mean_asisa_ret) - 1,
+         cumulative_return_ai = cumprod(1 + ai_returns) - 1,
+         cumulative_return_bm = cumprod(1 + bm_returns) - 1,
+         cumulative_return_asisa_med = cumprod(1 + med_asisa_ret)-1)
+
+# Visualize cumulative returns
+ggplot(comparison_data, aes(x = date)) +
+  geom_line(aes(y = cumulative_return_asisa, color = "ASISA Mean")) +
+  geom_line(aes(y = cumulative_return_ai, color = "AI Fund")) +
+  geom_line(aes(y = cumulative_return_bm, color = "Benchmark")) +
+    geom_line(aes(y=cumulative_return_asisa_med, color = "ASISA Median"))
+  labs(title = "Cumulative Returns Over Time",
+       subtitle = "AI Fund vs Benchmark vs ASISA Mean and Median (Fees not included)",
+       x = "Date",
+       y = "Cumulative Return",
+       color = "Legend") +
+  theme_classic()
+```
+
+
+```{r}
+library(RcppRoll)
+library(scales) # For percent_format()
+
+# Assuming your data frame is named comparison_data and has the columns: date, asisa_mean, ai_return, bm_return
+
+# Calculate the rolling returns
+comparison_data_rr <- comparison_data %>%
+  mutate(asisa_rollrets = RcppRoll::roll_prod(1 + mean_asisa_ret, 36, fill = NA, align = "right")^(12/36) - 1,
+         ai_rollrets = RcppRoll::roll_prod(1 + ai_returns, 36, fill = NA, align = "right")^(12/36) - 1,
+         bm_rollrets = RcppRoll::roll_prod(1 + bm_returns, 36, fill = NA, align = "right")^(12/36) - 1) %>%
+  group_by(date) %>%
+  filter(any(!is.na(asisa_rollrets)) | any(!is.na(ai_rollrets)) | any(!is.na(bm_rollrets))) %>%
+  ungroup()
+
+# Create the plot
+g <- ggplot(comparison_data_rr, aes(x = date)) +
+  geom_line(aes(y = asisa_rollrets, color = "ASISA Mean"), alpha = 0.7, size = 1.25) +
+  geom_line(aes(y = ai_rollrets, color = "AI Fund"), alpha = 0.7, size = 1.25) +
+  geom_line(aes(y = bm_rollrets, color = "Benchmark"), alpha = 0.7, size = 1.25) +
+  labs(title = "3-Year Annualized Rolling Returns",
+       subtitle = "Comparison of ASISA Mean, AI Fund, and Benchmark",
+       x = "",
+       y = "Rolling 3-Year Returns (Annualized)",
+       caption = "Note: Returns are annualized over a rolling 3-year period.") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+# fmxdat package for theming and final touches
+if(requireNamespace("fmxdat", quietly = TRUE)) {
+  g <- g + fmxdat::theme_fmx(title.size = 30, subtitle.size = 5, caption.size = 25, CustomCaption = TRUE) + 
+    fmxdat::fmx_cols() 
+  
+  # Final touches using finplot (if fmxdat is installed)
+  g <- fmxdat::finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = TRUE, y.pct = TRUE, y.pct_acc = 1)
+}
+
+# Print the plot
+print(g)
+```
+
+
+
+
+
+```{r}
+comparison_data_sd <- comparison_data %>%
+  mutate(asisa_log_ret = log(1 + mean_asisa_ret),
+         ai_log_ret = log(1 + ai_returns),
+         bm_log_ret = log(1 + bm_returns)) %>%
+ 
+  mutate(asisa_RollSD = roll_sd(asisa_log_ret, 36, fill = NA, align = "right") * sqrt(12),
+         ai_RollSD = roll_sd(ai_log_ret, 36, fill = NA, align = "right") * sqrt(12),
+         bm_RollSD = roll_sd(bm_log_ret, 36, fill = NA, align = "right") * sqrt(12)) %>%
+  ungroup()
+
+# Create the plot for rolling standard deviation
+g <- ggplot(comparison_data_sd, aes(x = date)) +
+  geom_line(aes(y = asisa_RollSD, color = "ASISA Mean"), alpha = 0.7, size = 1.25) +
+  geom_line(aes(y = ai_RollSD, color = "AI Fund"), alpha = 0.7, size = 1.25) +
+  geom_line(aes(y = bm_RollSD, color = "Benchmark"), alpha = 0.7, size = 1.25) +
+  labs(title = "3-Year Annualized Rolling Standard Deviation",
+       subtitle = "Comparison of ASISA Mean, AI Fund, and Benchmark",
+       x = "",
+       y = "Rolling 3-Year Standard Deviation (Annualized)",
+       caption = "Note: Standard deviation is annualized over a rolling 3-year period.") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+# Assuming you want to use the fmxdat package for theming and final touches
+if(requireNamespace("fmxdat", quietly = TRUE)) {
+  g <- g + fmxdat::theme_fmx(title.size = 30, subtitle.size = 5, caption.size = 25, CustomCaption = TRUE) + 
+    fmxdat::fmx_cols() 
+  
+  # Final touches using finplot (if fmxdat is installed)
+  g <- fmxdat::finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = TRUE, y.pct = FALSE, y.pct_acc = 1)
+}
+
+# Print the plot
+print(g)
+```
+
+```{r}
+# Assuming you have a dataframe 'rolling_returns' with columns 'date', 'ai_fund_rolling', 'asisa_rolling', and 'benchmark_rolling'
+
+rolling_returns <- comparison_data_rr %>% select(date, asisa_rollrets, ai_rollrets, bm_rollrets)
+# Convert rolling returns to a long format for ggplot
+rolling_returns_long <- rolling_returns %>%
+  gather(key = "Fund", value = "Return", -date)
+
+# Create the density plot
+ggplot(rolling_returns_long, aes(x = Return, fill = Fund)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Density Plot of Rolling Returns",
+       x = "Annualized Rolling Returns",
+       y = "Density") +
+  theme_minimal() +
+  scale_fill_manual(values = c("blue", "orange", "grey")) # You can choose your own colors
+
+# Add vertical lines for median returns and benchmark
+median_ai <- median(rolling_returns$ai_fund_rolling, na.rm = TRUE)
+median_asisa <- median(rolling_returns$asisa_rolling, na.rm = TRUE)
+benchmark <- median(rolling_returns$benchmark_rolling, na.rm = TRUE)
+
+ggplot(rolling_returns_long, aes(x = Return, fill = Fund)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = median_ai, color = "blue", linetype = "dashed") +
+  geom_vline(xintercept = median_asisa, color = "orange", linetype = "dashed") +
+  geom_vline(xintercept = benchmark, color = "grey", linetype = "dashed") +
+  labs(title = "Density Plot of Rolling Returns",
+       x = "Annualized Rolling Returns",
+       y = "Density") +
+  theme_minimal() +
+  scale_fill_manual(values = c("blue", "orange", "grey")) # You can choose your own colors
+```
+
+# Question 2: Currency hedging analysis
+
+For this question I need to construct two versions of a portfolio (hedged and unhedged) with the following allocations: 60% Equity (split into local and global as per the 70/30 ratio) and 40% Bond (again, split 70/30). 
+
+So how I understand hedging to work in this scenario is that from the South African perspective we may want to cancel out volatility by cancelling our exposure to the  
+
+```{r load data, include=FALSE}
+Indexes <- read_rds("data/Cncy_Hedge_Assets.rds") %>% arrange(date)
+ZAR <- read_rds("data/Monthly_zar.rds") %>% arrange(date)
+
+```
+
+Check for NAs in data
+```{r}
+sum(is.na(Indexes$date))
+sum(is.na(Indexes$MSCI_ACWI))
+sum(is.na(Indexes$Bbg_Agg))
+sum(is.na(Indexes$J433))
+sum(is.na(Indexes$ALBI))
+sum(is.na(ZAR$date))
+sum(is.na(ZAR$value))
+```
+No NAs found. Next, I join the dataframes. I noticed some dates do not overlap, for example Indexes has 2002-03-28 date, while ZAR has 2002-03-31. This suggests Indexes is recorded on the last weekday at the end of every month, while ZAR is recorded on the last day of every month. 
+
+## Date pre-processing
+
+Both data sets end on 2023-08-31. ZAR starts in 1990 while Indexes starts in 2002-02-28. I create a YM column which is use to join the two data sets and filter for the relevant overlapping dates. 
+
+```{r}
+first_date <- head(Indexes$date, 1)
+ZAR_clean <- ZAR  %>%  filter(date >= ymd(first_date)) %>% mutate(YM = format(date, "%Y_%B")) %>% 
+    rename(ZAR.USD = value) %>% select(-Tickers)
+Indexes_clean <- Indexes %>% mutate(YM = format(date,"%Y_%B" )) %>% select(-date)
+q2_df <- ZAR_clean %>% left_join(Indexes_clean, by = "YM")
+```
+
+## Some initial thoughts
+
+I understand hedging in this scenario to mean that, from a South African perspective, we may want to reduce portfolio volatility by eliminating exposure to the Rand (which is volatile relative to USD). So, in our hedging portfolio we convert Rand denominated equities and bonds to Dollar. The unhedged portfolio we leave as is. 
+
+## Step 1: Convert ZAR-denominated returns to USD for the unhedged portfolio
+```{r}
+q2_df_unhedged <- q2_df %>%
+  mutate(J433_USD = J433 / ZAR.USD,
+         ALBI_USD = ALBI / ZAR.USD)
+
+```
+
+
 
