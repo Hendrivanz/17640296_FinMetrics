@@ -183,7 +183,8 @@
 
 \begin{abstract}
 \small{
-Let's see if I can write anything here.
+Compare SWIX and ALSI methodologies by looking at different sector
+exposures and stock concentration over time.
 }
 \end{abstract}
 
@@ -192,7 +193,7 @@ Let's see if I can write anything here.
 
 \begin{keyword}
 \footnotesize{
-Multivariate GARCH \sep Kalman Filter \sep Copula \\
+Portfolio Construction\sep SWIX vs ALSI \sep JSE \\
 \vspace{0.3cm}
 }
 \end{keyword}
@@ -228,7 +229,90 @@ Multivariate GARCH \sep Kalman Filter \sep Copula \\
 
 
 
+\hypertarget{introduction}{%
+\section*{Introduction}\label{introduction}}
+\addcontentsline{toc}{section}{Introduction}
 
+The SWIX (Shareholder Weighted Indices) and ALSI (All Share Index) are
+both methodologies used in the South African financial markets for index
+construction, but they differ in their approaches and compositions.
+
+\hypertarget{swix-shareholder-weighted-indices}{%
+\subsubsection*{SWIX (Shareholder Weighted
+Indices):}\label{swix-shareholder-weighted-indices}}
+\addcontentsline{toc}{subsubsection}{SWIX (Shareholder Weighted
+Indices):}
+
+\emph{The SWIX methodology adjusts the market capitalization of
+companies based on the portion of shares that are available to local
+investors. }It reduces the weighting of companies in the index that have
+a large proportion of their shares held by foreign or strategic
+investors, who are less likely to trade these shares actively.
+\emph{This methodology is designed to provide a more accurate reflection
+of the investable market for local investors, as it focuses on the
+free-float shares that are actually available for trading in the
+domestic market. }SWIX is considered to give a better indication of what
+local investors are likely to experience in terms of market movements
+and is often used by local fund managers for benchmarking.
+
+\hypertarget{alsi-all-share-index}{%
+\subsubsection*{ALSI (All Share Index):}\label{alsi-all-share-index}}
+\addcontentsline{toc}{subsubsection}{ALSI (All Share Index):}
+
+\emph{The ALSI represents the performance of the South African stock
+market by including all listed companies on the Johannesburg Stock
+Exchange (JSE). }It is a market capitalization-weighted index, meaning
+that companies with a higher market cap have a larger influence on the
+index's performance. \emph{The ALSI does not adjust for the shareholder
+base, so it includes both domestic and foreign-held shares in its
+calculation. }It provides a broad representation of the South African
+stock market, making it a useful tool for understanding overall market
+performance.
+
+\hypertarget{compare-cumulative-returns-for-various-cap-sizes}{%
+\subsection*{Compare cumulative returns for various cap
+sizes}\label{compare-cumulative-returns-for-various-cap-sizes}}
+\addcontentsline{toc}{subsection}{Compare cumulative returns for various
+cap sizes}
+
+\hypertarget{large-caps}{%
+\subsubsection*{Large caps}\label{large-caps}}
+\addcontentsline{toc}{subsubsection}{Large caps}
+
+\includegraphics{Question3_files/figure-latex/unnamed-chunk-1-1.pdf}
+
+The cumulative return series for the J203 or ALSI appears to outperform
+the J403 or the SWIX method in the long run for large caps.
+
+\hypertarget{medium-caps}{%
+\subsubsection*{Medium Caps}\label{medium-caps}}
+\addcontentsline{toc}{subsubsection}{Medium Caps}
+
+\includegraphics{Question3_files/figure-latex/unnamed-chunk-2-1.pdf}
+
+\hypertarget{small-caps}{%
+\subsubsection*{Small Caps}\label{small-caps}}
+\addcontentsline{toc}{subsubsection}{Small Caps}
+
+\includegraphics{Question3_files/figure-latex/unnamed-chunk-3-1.pdf}
+
+All three identical. What a coincidence!
+
+\hypertarget{compare-methods-by-cumulative-returns-per-sector}{%
+\subsection*{Compare methods by cumulative returns per
+sector}\label{compare-methods-by-cumulative-returns-per-sector}}
+\addcontentsline{toc}{subsection}{Compare methods by cumulative returns
+per sector}
+
+\includegraphics{Question3_files/figure-latex/unnamed-chunk-4-1.pdf}
+
+Again identical. Amazing\ldots{}
+
+\hypertarget{conclusion}{%
+\section*{Conclusion}\label{conclusion}}
+\addcontentsline{toc}{section}{Conclusion}
+
+I'm sorry about this.
 
 \bibliography{Tex/ref}
 

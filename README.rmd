@@ -1,10 +1,8 @@
 ---
-output:
-  md_document:
-    variant: markdown_github
+output: github_document
 ---
 
-# Financial Metrics 871 Practical Exam
+# Financial Metrics 871 Practical Exam (17640296)
 
 
 
@@ -16,24 +14,16 @@ library(tidyverse)
 library(PerformanceAnalytics)
 library(tbl2xts)
 library(fmxdat)
-list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
+library(lubridate)
+library(RcppRoll)
+library(scales) 
+#list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 
 # working directory
 path = getwd()
 ```
 
 
-```{r}
-# PDF Texevier:
-Texevier::create_template(directory = "Questions",
-                          template_name = "Question1"
-)
-
-# HTML Texevier:
-Texevier::create_template_html(directory = "Questions",
-                          template_name = "Question2"
-)
-```
 
 # Question 1: Systematic AI Fund
 
@@ -53,7 +43,7 @@ First, let's check if there are NAs in any of the returns data.
 
 ```{r}
 sum(is.na(AI_Fund$AI_Fund))
-sum(is.na(ASISA_df$Returns))
+sum(is.na(ASISA$Returns))
 sum(is.na(BM$Returns))
 ```
 
@@ -72,108 +62,37 @@ ai_fund <- AI_Fund %>% rename(ai_returns = AI_Fund) %>% arrange(date)
 
 ```
 
-```{r}
-library(lubridate)
-asisa_cum_ret <- ASISA_active %>% group_by(Fund) %>% 
-mutate(Cum_Ret = cumprod(1 + Returns)) %>% ungroup()
 
-fund_with_median_return <- asisa_cum_ret %>%
-  filter(date == max(date)) %>%
-  arrange(desc(Cum_Ret)) %>%
-  slice((n() + 1) / 2) %>%
-  pull(Fund)
 
-asisa_med <- asisa_cum_ret %>% filter(Fund == fund_with_median_return) %>% select(date, Cum_Ret)
-```
-
-## Step 2: Cumulative Return graph
+## Step 2: Cumulative Return graph AI fund vs Benchmark vs Active managers
 
 In this graph I compare the performance of the AI fund against the benchmark and the mean active managers funds. 
 
 ```{r}
-
-# Compute mean returns for the active funds at each date
-asisa_meds <- ASISA_active %>% 
-    group_by(date) %>% 
-    summarize(med_asisa_ret = median(Returns))
-
-ASISA_means <- ASISA_active %>%
-  group_by(date) %>%
-  summarize(mean_asisa_ret = mean(Returns))
-
-# Merge the mean returns with AI fund and benchmark data
-comparison_data_combine <- ASISA_means %>%
-  left_join(ai_fund, by = "date") %>%
-  left_join(bm, by = "date") %>% 
-    left_join(asisa_meds, by = "date")
-
-# Calculate cumulative returns
-comparison_data <- comparison_data_combine %>%
-  mutate(cumulative_return_asisa = cumprod(1 + mean_asisa_ret) - 1,
-         cumulative_return_ai = cumprod(1 + ai_returns) - 1,
-         cumulative_return_bm = cumprod(1 + bm_returns) - 1,
-         cumulative_return_asisa_med = cumprod(1 + med_asisa_ret)-1)
-
-# Visualize cumulative returns
-ggplot(comparison_data, aes(x = date)) +
-  geom_line(aes(y = cumulative_return_asisa, color = "ASISA Mean")) +
-  geom_line(aes(y = cumulative_return_ai, color = "AI Fund")) +
-  geom_line(aes(y = cumulative_return_bm, color = "Benchmark")) +
-    geom_line(aes(y=cumulative_return_asisa_med, color = "ASISA Median"))
-  labs(title = "Cumulative Returns Over Time",
-       subtitle = "AI Fund vs Benchmark vs ASISA Mean and Median (Fees not included)",
-       x = "Date",
-       y = "Cumulative Return",
-       color = "Legend") +
-  theme_classic()
+source(paste0(path, "/code/11_cum_plot.R"))
+q1_cumplot
 ```
+
+This came out pretty good, we can clearly see the active managers (mean and median) have substantially lower returns than the benchmark and AI Fund and this is without accounting for fees which would further decrease the performance of the actively managed funds. 
+
+
+## Step 3: 3-year Rolling returns annualized
+
+Annualized rolling returns are better for funds comparing over time. 
 
 
 ```{r}
-library(RcppRoll)
-library(scales) # For percent_format()
 
-# Assuming your data frame is named comparison_data and has the columns: date, asisa_mean, ai_return, bm_return
-
-# Calculate the rolling returns
-comparison_data_rr <- comparison_data %>%
-  mutate(asisa_rollrets = RcppRoll::roll_prod(1 + mean_asisa_ret, 36, fill = NA, align = "right")^(12/36) - 1,
-         ai_rollrets = RcppRoll::roll_prod(1 + ai_returns, 36, fill = NA, align = "right")^(12/36) - 1,
-         bm_rollrets = RcppRoll::roll_prod(1 + bm_returns, 36, fill = NA, align = "right")^(12/36) - 1) %>%
-  group_by(date) %>%
-  filter(any(!is.na(asisa_rollrets)) | any(!is.na(ai_rollrets)) | any(!is.na(bm_rollrets))) %>%
-  ungroup()
-
-# Create the plot
-g <- ggplot(comparison_data_rr, aes(x = date)) +
-  geom_line(aes(y = asisa_rollrets, color = "ASISA Mean"), alpha = 0.7, size = 1.25) +
-  geom_line(aes(y = ai_rollrets, color = "AI Fund"), alpha = 0.7, size = 1.25) +
-  geom_line(aes(y = bm_rollrets, color = "Benchmark"), alpha = 0.7, size = 1.25) +
-  labs(title = "3-Year Annualized Rolling Returns",
-       subtitle = "Comparison of ASISA Mean, AI Fund, and Benchmark",
-       x = "",
-       y = "Rolling 3-Year Returns (Annualized)",
-       caption = "Note: Returns are annualized over a rolling 3-year period.") +
-  scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  theme_minimal() +
-  theme(legend.title = element_blank())
-
-# fmxdat package for theming and final touches
-if(requireNamespace("fmxdat", quietly = TRUE)) {
-  g <- g + fmxdat::theme_fmx(title.size = 30, subtitle.size = 5, caption.size = 25, CustomCaption = TRUE) + 
-    fmxdat::fmx_cols() 
-  
-  # Final touches using finplot (if fmxdat is installed)
-  g <- fmxdat::finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = TRUE, y.pct = TRUE, y.pct_acc = 1)
-}
-
-# Print the plot
+source(paste0(path, "/code/12_rr_plot.R"))
 print(g)
 ```
 
+Nice. The AI fund appears to be matching or outperforming the the benchmark most of the time with the active fund mean yielding notably less 3-year rolling returns (annualized). 
 
 
+## Step 4: Rolling standard deviation
 
+To give us a better idea of volatility and risk
 
 ```{r}
 comparison_data_sd <- comparison_data %>%
@@ -187,7 +106,7 @@ comparison_data_sd <- comparison_data %>%
   ungroup()
 
 # Create the plot for rolling standard deviation
-g <- ggplot(comparison_data_sd, aes(x = date)) +
+h <- ggplot(comparison_data_sd, aes(x = date)) +
   geom_line(aes(y = asisa_RollSD, color = "ASISA Mean"), alpha = 0.7, size = 1.25) +
   geom_line(aes(y = ai_RollSD, color = "AI Fund"), alpha = 0.7, size = 1.25) +
   geom_line(aes(y = bm_RollSD, color = "Benchmark"), alpha = 0.7, size = 1.25) +
@@ -200,21 +119,27 @@ g <- ggplot(comparison_data_sd, aes(x = date)) +
   theme_minimal() +
   theme(legend.title = element_blank())
 
-# Assuming you want to use the fmxdat package for theming and final touches
+# fmxdat theme stuff
 if(requireNamespace("fmxdat", quietly = TRUE)) {
-  g <- g + fmxdat::theme_fmx(title.size = 30, subtitle.size = 5, caption.size = 25, CustomCaption = TRUE) + 
+  h <- h + fmxdat::theme_fmx(title.size = 30, subtitle.size = 5, caption.size = 25, CustomCaption = TRUE) + 
     fmxdat::fmx_cols() 
   
-  # Final touches using finplot (if fmxdat is installed)
-  g <- fmxdat::finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = TRUE, y.pct = FALSE, y.pct_acc = 1)
+  # Final touches using finplot 
+  h <- fmxdat::finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = TRUE, y.pct = FALSE, y.pct_acc = 1)
 }
 
 # Print the plot
-print(g)
+print(h)
 ```
 
+Not really surprising given that the actively managed fund is a mean value so it will be smoother, I did not really think this one through. 
+
+## Step 5: Density plot
+
+I wanted to get an idea of the distribution of the rolling returns for the benchmark, AI Fund and Active fund, but it didn't really come out like I expected it to. 
+
 ```{r}
-# Assuming you have a dataframe 'rolling_returns' with columns 'date', 'ai_fund_rolling', 'asisa_rolling', and 'benchmark_rolling'
+
 
 rolling_returns <- comparison_data_rr %>% select(date, asisa_rollrets, ai_rollrets, bm_rollrets)
 # Convert rolling returns to a long format for ggplot
@@ -244,8 +169,18 @@ ggplot(rolling_returns_long, aes(x = Return, fill = Fund)) +
        x = "Annualized Rolling Returns",
        y = "Density") +
   theme_minimal() +
-  scale_fill_manual(values = c("blue", "orange", "grey")) # You can choose your own colors
+  scale_fill_manual(values = c("blue", "orange", "grey")) 
 ```
+
+No idea what to make of this. 
+
+##Step 7: Some statistical tables
+
+Couldn't get this to work and it's already Sunday So I am going to move on...
+
+
+
+
 
 # Question 2: Currency hedging analysis
 
@@ -295,5 +230,86 @@ q2_df_unhedged <- q2_df %>%
 
 ```
 
+Ok no I had no idea what I was doing, wasted hours and couldn't figure it out. Panic. 
 
 
+
+# Question 3
+
+
+```{r load data 3, include=FALSE}
+ALSI_df <- read_rds("data/ALSI.rds")
+
+```
+
+## Step 1: Data pre-processing
+
+check for NA's
+
+```{r}
+sum(is.na(ALSI_df$J203))
+sum(is.na(ALSI_df$J403))
+```
+
+NAs present in ALSI J403. Let's replace them with the most recently observed past return using `~na.locf`
+
+
+```{r}
+source(paste0(path, "/code/31_preproc.R"))
+sum(is.na(ALSI$J403))
+
+```
+
+Success. No more NAs in our data. We proceed. 
+
+## Compare cumulative returns by cap size
+
+Is this the best way to test performance? No. Am I running out of time and trying to submit at least something that showed I tried? Yes.  
+
+```{r}
+# note to self ALSI is J203 and SWIX is J403
+source(paste0(path, "/code/32_cum_ret_plots.R"))
+
+large_cum_plot
+```
+Appears as if the performance is quite similar for between 2012 and 2020 after which the ALSI seems to outperform the SWIX on large caps. 
+
+Compare cumulative returns on medium caps
+
+```{r}
+mid_cum_plot
+```
+
+Oh great, this plot looks identical to the previous one. 
+
+Compare cumulative returns on small caps
+
+```{r}
+small_cum_plot
+```
+
+Disappointing. The three graphs look identical...
+
+Let's see if we can spot any differences between sectors. I just realized how inefficient the first steps were, but I don't have enough time to redo them, so I'll do here what I should have done initially using the `33_sectors_plot.R` script. 
+
+```{r}
+q3_df <-  ALSI  %>% mutate(J203_returns = J203*Return, J403_returns = J403*Return) %>% mutate(J203_cum_returns = cumprod(1 + J203_returns), J403_cum_returns = cumprod(1 + J403_returns))
+```
+
+```{r}
+source(paste0(path, "/code/33_sectors_plot.R"))
+sectors_plot
+
+```
+
+Wow. They're all identical again. 
+
+Okay this has been a massive failure. I'm just curious to see whether the weights of the various sectors in each index.
+
+
+
+```{r}
+q3_df %>% mutate( Y = format(date, "%Y")) %>%  select(Y, J203_cum_returns, J403_cum_returns, Sector) %>% gather(Index, Cum_Returns, -Y, -Sector) %>% group_by(Y, Index, Sector) %>% summarise(sum(Cum_Returns)) 
+```
+
+... I'm just leaving the above in as an example of me trying but not really thinking things through and then scrapping it after wasting time.  I wanted to make a bar plot comparing the weights of each sector by index at each year. Just to see how each index changed its weighting over time. But what I'm doing here is calculating the sum of cumulative returns for each sector in each year with the intention of taking each sector as a ratio of total cumulative returns for all sectors. But is that even an accurate way to calculate weight of sector at a point in time - I don't think so... I just tried something. 
