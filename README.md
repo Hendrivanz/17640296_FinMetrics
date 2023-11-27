@@ -124,12 +124,12 @@ h <- ggplot(comparison_data_sd, aes(x = date)) +
   theme_minimal() +
   theme(legend.title = element_blank())
 
-# Assuming you want to use the fmxdat package for theming and final touches
+# fmxdat theme stuff
 if(requireNamespace("fmxdat", quietly = TRUE)) {
   h <- h + fmxdat::theme_fmx(title.size = 30, subtitle.size = 5, caption.size = 25, CustomCaption = TRUE) + 
     fmxdat::fmx_cols() 
   
-  # Final touches using finplot (if fmxdat is installed)
+  # Final touches using finplot 
   h <- fmxdat::finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = TRUE, y.pct = FALSE, y.pct_acc = 1)
 }
 ```
@@ -157,8 +157,6 @@ the benchmark, AI Fund and Active fund, but it didn’t really come out
 like I expected it to.
 
 ``` r
-# Assuming you have a dataframe 'rolling_returns' with columns 'date', 'ai_fund_rolling', 'asisa_rolling', and 'benchmark_rolling'
-
 rolling_returns <- comparison_data_rr %>% select(date, asisa_rollrets, ai_rollrets, bm_rollrets)
 # Convert rolling returns to a long format for ggplot
 rolling_returns_long <- rolling_returns %>%
@@ -171,44 +169,10 @@ ggplot(rolling_returns_long, aes(x = Return, fill = Fund)) +
        x = "Annualized Rolling Returns",
        y = "Density") +
   theme_minimal() +
-  scale_fill_manual(values = c("blue", "orange", "grey")) # You can choose your own colors
+  scale_fill_manual(values = c("blue", "orange", "grey")) 
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
-
-``` r
-# Add vertical lines for median returns and benchmark
-median_ai <- median(rolling_returns$ai_fund_rolling, na.rm = TRUE)
-```
-
-    ## Warning: Unknown or uninitialised column: `ai_fund_rolling`.
-
-``` r
-median_asisa <- median(rolling_returns$asisa_rolling, na.rm = TRUE)
-```
-
-    ## Warning: Unknown or uninitialised column: `asisa_rolling`.
-
-``` r
-benchmark <- median(rolling_returns$benchmark_rolling, na.rm = TRUE)
-```
-
-    ## Warning: Unknown or uninitialised column: `benchmark_rolling`.
-
-``` r
-ggplot(rolling_returns_long, aes(x = Return, fill = Fund)) +
-  geom_density(alpha = 0.5) +
-  geom_vline(xintercept = median_ai, color = "blue", linetype = "dashed") +
-  geom_vline(xintercept = median_asisa, color = "orange", linetype = "dashed") +
-  geom_vline(xintercept = benchmark, color = "grey", linetype = "dashed") +
-  labs(title = "Density Plot of Rolling Returns",
-       x = "Annualized Rolling Returns",
-       y = "Density") +
-  theme_minimal() +
-  scale_fill_manual(values = c("blue", "orange", "grey")) # You can choose your own colors
-```
-
-![](README_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
 
 No idea what to make of this.
 
@@ -421,12 +385,4 @@ q3_df %>% mutate( Y = format(date, "%Y")) %>%  select(Y, J203_cum_returns, J403_
     ## 10 2014  J203_cum_returns Industrials             26095.
     ## # ℹ 78 more rows
 
-… I’m just leaving the above in as an example of me trying but not
-really thinking things through and then scrapping it after wasting time.
-I wanted to make a bar plot comparing the weights of each sector by
-index at each year. Just to see how each index changed its weighting
-over time. But what I’m doing here is calculating the sum of cumulative
-returns for each sector in each year with the intention of taking each
-sector as a ratio of total cumulative returns for all sectors. But is
-that even an accurate way to calculate weight of sector at a point in
-time - I don’t think so… I just tried something.
+… So much time wasted. Sorry. Ends.
