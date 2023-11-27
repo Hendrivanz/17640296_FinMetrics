@@ -26,8 +26,7 @@ q1_cumplot <- ggplot(comparison_data, aes(x = date)) +
     geom_line(aes(y = cumulative_return_ai, color = "AI Fund")) +
     geom_line(aes(y = cumulative_return_bm, color = "Benchmark")) +
     geom_line(aes(y=cumulative_return_asisa_med, color = "ASISA Median")) +
-    labs(title = "Cumulative Returns Over Time",
-         subtitle = "AI Fund vs Benchmark vs ASISA Mean and Median (Fees not included)",
+    labs(title = "AI Fund vs Benchmark vs Active Fund (Mean and Median)",
          x = "Date",
          y = "Cumulative Return",
          color = "Legend") +

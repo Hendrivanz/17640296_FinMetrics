@@ -89,82 +89,17 @@ print(g)
 
 Nice. The AI fund appears to be matching or outperforming the the benchmark most of the time with the active fund mean yielding notably less 3-year rolling returns (annualized). 
 
-
-## Step 4: Rolling standard deviation
-
-To give us a better idea of volatility and risk
-
-```{r}
-comparison_data_sd <- comparison_data %>%
-  mutate(asisa_log_ret = log(1 + mean_asisa_ret),
-         ai_log_ret = log(1 + ai_returns),
-         bm_log_ret = log(1 + bm_returns)) %>%
- 
-  mutate(asisa_RollSD = roll_sd(asisa_log_ret, 36, fill = NA, align = "right") * sqrt(12),
-         ai_RollSD = roll_sd(ai_log_ret, 36, fill = NA, align = "right") * sqrt(12),
-         bm_RollSD = roll_sd(bm_log_ret, 36, fill = NA, align = "right") * sqrt(12)) %>%
-  ungroup()
-
-# Create the plot for rolling standard deviation
-h <- ggplot(comparison_data_sd, aes(x = date)) +
-  geom_line(aes(y = asisa_RollSD, color = "ASISA Mean"), alpha = 0.7, size = 1.25) +
-  geom_line(aes(y = ai_RollSD, color = "AI Fund"), alpha = 0.7, size = 1.25) +
-  geom_line(aes(y = bm_RollSD, color = "Benchmark"), alpha = 0.7, size = 1.25) +
-  labs(title = "3-Year Annualized Rolling Standard Deviation",
-       subtitle = "Comparison of ASISA Mean, AI Fund, and Benchmark",
-       x = "",
-       y = "Rolling 3-Year Standard Deviation (Annualized)",
-       caption = "Note: Standard deviation is annualized over a rolling 3-year period.") +
-  scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  theme_minimal() +
-  theme(legend.title = element_blank())
-
-# fmxdat theme stuff
-if(requireNamespace("fmxdat", quietly = TRUE)) {
-  h <- h + fmxdat::theme_fmx(title.size = 30, subtitle.size = 5, caption.size = 25, CustomCaption = TRUE) + 
-    fmxdat::fmx_cols() 
-  
-  # Final touches using finplot 
-  h <- fmxdat::finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = TRUE, y.pct = FALSE, y.pct_acc = 1)
-}
-
-# Print the plot
-print(h)
-```
-
-Not really surprising given that the actively managed fund is a mean value so it will be smoother, I did not really think this one through. 
-
 ## Step 5: Density plot
 
-I wanted to get an idea of the distribution of the rolling returns for the benchmark, AI Fund and Active fund, but it didn't really come out like I expected it to. 
+I wanted to get an idea of the distribution of the rolling returns for the benchmark, AI Fund and Active fund.
+
 
 ```{r}
-
-
-rolling_returns <- comparison_data_rr %>% select(date, asisa_rollrets, ai_rollrets, bm_rollrets)
-# Convert rolling returns to a long format for ggplot
-rolling_returns_long <- rolling_returns %>%
-  gather(key = "Fund", value = "Return", -date)
-
-# Create the density plot
-ggplot(rolling_returns_long, aes(x = Return, fill = Fund)) +
-  geom_density(alpha = 0.5) +
-  labs(title = "Density Plot of Rolling Returns",
-       x = "Annualized Rolling Returns",
-       y = "Density") +
-  theme_minimal() +
-  scale_fill_manual(values = c("blue", "orange", "grey")) 
-
-
+source(paste0(path, "/code/13_dens_plot.R"))
+density_plot
 ```
 
-No idea what to make of this. 
-
-##Step 7: Some statistical tables
-
-Couldn't get this to work and it's already Sunday So I am going to move on...
-
-
+The AI fund rolling return median is higher than the benchmark
 
 
 
